@@ -1,0 +1,121 @@
+Objective: Coding/Building a custom HTTP server using C.
+
+
+
+Pre-Requisitve Explanations:
+i. HTTP stands for Hypertext Transfer Protocol.
+It is the underlying set of rules used to pass text, images, sound, and video files across the World Wide Web between a web browser and a web server.
+
+ii. The HTTP runs on TCP/IP protocol i.e., there are TCP/IP packets and inside them, there are HTTP packects/data.
+
+iii. Basically, HTTP is a protocol to fetch some kind of data from the server.
+
+
+
+Working of Server:
+i. We Enter a url of a company's website like "google.com" .
+ii. The url is translated into an IP address. - this IP address is the address of the company's server hosting/containing the file links, webpages, etc in it.
+iii. The request is sent to that server using the HTTP protocol (HTTP uses the TCP/IP protocol stack by default).
+iv. The TC/IP stack does all the routing so that the request is sent to the server properly
+iv. The server receives the request and responds back to the requested client with the required file links, web pages, etc using the same TCP/IP stack.
+
+
+
+Explanation of any additonal elements:
+i. <windows.h>: Used for the sleep(milliseconds) function for cool-off time of 1 sec.
+
+ii. <winsock2.h>: stands for Windows Sockets 2 Standard Header. It is the core API header file used for network programming on the Windows operating system.
+While Linux uses <sys/socket.h> for networking, Windows uses <winsock2.h> to expose Microsoft's Windows Sockets (Winsock) API architecture.
+The file acts as a technical blueprint mapping Microsoft Win32 API functions directly to the Windows network driver (ws2_32.dll). It provides:
+    Socket Controls: Basic connection primitives like socket(), bind(), listen(), accept(), connect(), send(), and recv().
+    Windows Extensions: Special platform-specific functions prefixed with "WSA" (e.g., WSAStartup(), WSACleanup(), WSAGetLastError()).Network Objects: Custom data structures tailored for Windows memory models, such as WSADATA and SOCKET types.
+
+iii. Sockets: are end-points for nodes through which different nodes transfer data across internet.
+
+
+
+Explanation of Functions:
+i. socket() - The function socket() depends slightly on whether you are compiling for a Unix-like system (Linux/macOS) or for Windows (using Winsock), though the parameters they take are identical.
+    1. Linux / macOS Protocol (<sys/socket.h>)On POSIX-compliant systems, the function returns a standard file descriptor integer
+    int socket(int domain, int type, int protocol);
+    2. Windows Protocol (<winsock2.h>)On Windows, it returns a custom unsigned pointer-sized data type called SOCKET
+    SOCKET socket(int af, int type, int protocol);
+    socket() in windows returns a SOCKET primitive descriptor type, which is internally defined as a 64-bit unsigned integer handle (unsigned long long) on 64-bit systems.On a 64-bit Windows build, UINT_PTR resolves to an unsigned __int64. On a 32-bit Windows build, it resolves to an unsigned int.
+    When the socket() function fails on Windows, it returns the number 18446744073709551615 (on 64-bit systems).Because that massive number is hard to remember, the Windows headers give it a name: INVALID_SOCKET.
+
+    Values/arguments generally passed:
+        a. (domain/af) - AF_INET (int equivalent of 2: specifies which type of ip family address in this case, it belongs to IPv4 address family.)
+        b. type - SOCK_STREAM (int equivalent of 1: specifies which type of socket for data packet whether TCP or UDP in this case, its TCP.)
+        c. protocol - IPPROTO_IP (int equivalent of 0: selects appropriate type of socket)
+
+
+ii. A sockaddr_in is a data structure used in network programming (like C or C++) to store an IPv4 internet address and port number. It makes it easy to set up or connect to a network socket by breaking down the address family, port, and IP into separate, readable fields.
+After declaring a variable of datatype struct sockaddr_in, we need to erase the memory which contains garbage after being created and set the values to 0 before passing this variable to the bind() function.
+
+
+iii. bind() - is a system function that assigns a specific local IP address and port number to an anonymous socket.
+It takes the raw "network engine" you created with socket() and anchors it to a physical location on your computer so it can start receiving data.
+What bind() Does in 3 Simple Steps
+    Reads the Address: It opens the sockaddr_in memory block you provided, using the AF_INET tag as its guide to safely extract the IP and port.
+    Checks Availability: It asks the operating system, "Is any other program already using this port number?" If a program is using it, bind() fails.
+    Wires the Connection: If the port is free, it locks that IP and port directly to your socket ID.
+    Return Value and Error Handling
+        0: On success.
+        SOCKET_ERROR (which is defined as -1): On failure.
+
+    Values/arguments generally passed:
+        a. SOCKET s - The first argument. Instead of a standard integer descriptor (int), Windows uses a dedicated SOCKET data type (which is internally an unsigned pointer-sized integer). This is the ID returned by the Winsock socket() function.
+        b. const sockaddr *name - The second argument. A pointer to the generic sockaddr structure. Just like in Linux, you pass your IPv4 sockaddr_in structure here and cast it to (const sockaddr*).
+        c. int namelen: The third argument. Unlike Linux which uses socklen_t, Windows simply uses a standard int to represent the size of the address structure in bytes (e.g., sizeof(sockaddr_in)).
+
+
+iv. By running memset(), you turn every single bit across all 16 bytes of that variable into a clean slate of absolute zeros.
+Because every single byte is now exactly 0, you have successfully satisfied the operating system's strict requirement for the hidden sin_zero padding fields at the end of the structure.
+Now, when you assign your values next:
+    You overwriting Bytes 1–2 with AF_INET.
+    You overwriting Bytes 3–4 with your port.
+    You overwriting Bytes 5–8 with your IP address.
+    Bytes 9–16 automatically remain perfect zeros, exactly as the operating system demands!
+Now that the memory block is zeroed out and ready, we can write the code for assigning sin_family, sin_port, and sin_addr.
+    a. sin_family - set to AF_INET (tells the OS: "This is an IPv4 setup. I need to parse the next bytes specifically as a 2-byte port and a 4-byte IPv4 address.")
+    b. sin_port - assign your port number wrapped in the htons() function (e.g., htons(8080)).
+        The htons() Detail: Your computer's CPU processes numbers using Little-Endian format, but network routers read numbers using Big-Endian format (Network Byte Order). htons stands for Host-to-Network Short. It flips the bytes of your port number so network hardware can read it correctly.
+    c. sin_addr.s_addr - 32-bit Internet Protocol (IP) Address field typically assigned the constant INADDR_ANY.
+        The sin_addr field is actually a nested structure (struct in_addr), and s_addr is the specific variable inside it that holds the final 32-bit raw number of your IP.
+        Setting this value to INADDR_ANY assigns the wildcard IP 0.0.0.0. It tells your operating system: "Listen for incoming traffic on every single physical network card this computer has (Wi-Fi, Ethernet, and Localhost)." If you wanted to lock your server exclusively to your Wi-Fi card, you would use a function like inet_addr("192.168.1.50") here instead.
+
+
+v. Unlike Linux, where network functions work instantly, Windows requires you to "turn on" the networking engine before you can use any socket functions. You must initialize it using WSAStartup() at the beginning of main(), and clean it up using WSACleanup() at the end.
+    a. WSAStartup(MAKEWORD(2, 2), &wsaData) - Windows does not automatically load network resource libraries into memory for every application because it would waste system RAM. WSAStartup stands for Windows Sockets Aasynchronous Startup.
+        When you call this function, it does two primary things:
+        Loads the DLL: It forces Windows to immediately load the network communication driver library file (ws2_32.dll) into your program's active memory space.
+        Negotiates the Version: It checks if your computer supports the socket version you requested (via MAKEWORD(2,2)). If supported, it locks that version in place for your program and populates your wsaData struct with info about the system's network capabilities.
+
+        Values/arguments generally passed:
+            1. MAKEWORD(2, 2) - is a built-in Windows utility macro that combines two 8-bit numbers (bytes) into a single 16-bit number (a WORD).
+            Windows uses this 16-bit number to represent the version of Winsock you want to request.
+                The first number is the Minor version (2).
+                The second number is the Major version (2).
+            The WSAStartup() function expects its first parameter to be a single 16-bit integer representing the version, encoded in a specific way.Instead of forcing you to do confusing math (like hexadecimal byte-shifting), Microsoft provides MAKEWORD(2, 2). It automatically packages those two version numbers together into the exact format the operating system expects to request Winsock Version 2.2.
+
+            2.WSADATA - is a data structure defined by Windows. When you declare WSADATA wsaData;, you are creating a temporary information container that is completely empty.
+            You pass a pointer to this empty container into WSAStartup(&wsaData). The Windows operating system then fills this container with specific details about your computer's actual network features and capabilities.
+            If you look inside wsaData after WSAStartup runs successfully, it contains several fields
+                wVersion: The version of Winsock that Windows is actually going to let you use (usually 2.2).
+                wHighVersion: The absolute highest version of Winsock that your current computer's network card drivers can support.szDescription: A readable text string containing general status info about your Windows network implementation.szSystemStatus: A readable text string containing configuration or status info about the underlying hardware.
+            Your code does not usually need to read or use the information inside wsaData—you can safely ignore it after it gets filled. However, Windows strictly requires you to pass it because it serves as an official receipt showing that the operating system checked your system's hardware, verified compatibility, and successfully initialized the network subsystem for your app.
+    
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+    b. WSACleanup(void) - When your program is done running or is about to exit, calling this function tells the Windows operating system
+    Deregisters the App: "My application is no longer using any network drivers."
+    Unloads the DLL: Windows unloads ws2_32.dll from your program's memory and instantly frees up any RAM or kernel handles that were held open by your sockets.
+    If you don't call WSACleanup(), Windows will eventually clean up your program's memory when the process terminates completely, but leaving it out can cause resource leaks while your application runs.
+
+    Values/arguments generally passed:
+        1. void - It takes absolutely no arguments.
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
