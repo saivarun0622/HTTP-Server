@@ -52,6 +52,10 @@ i. socket() - The function socket() depends slightly on whether you are compilin
 ii. A sockaddr_in is a data structure used in network programming (like C or C++) to store an IPv4 internet address and port number. It makes it easy to set up or connect to a network socket by breaking down the address family, port, and IP into separate, readable fields.
 After declaring a variable of datatype struct sockaddr_in, we need to erase the memory which contains garbage after being created and set the values to 0 before passing this variable to the bind() function.
 
+    In this structure's varaible, we set the port number using the htons(port_no) function.
+        The htons() function stands for Host to Network Short, and its sole purpose is to convert your port number from the computer's CPU byte order to the standard network byte order.
+        Without htons(), a different computer on the network will misread your port number, causing connection errors.
+
 
 iii. bind() - is a system function that assigns a specific local IP address and port number to an anonymous socket.
 It takes the raw "network engine" you created with socket() and anchors it to a physical location on your computer so it can start receiving data.
@@ -59,6 +63,7 @@ What bind() Does in 3 Simple Steps
     Reads the Address: It opens the sockaddr_in memory block you provided, using the AF_INET tag as its guide to safely extract the IP and port.
     Checks Availability: It asks the operating system, "Is any other program already using this port number?" If a program is using it, bind() fails.
     Wires the Connection: If the port is free, it locks that IP and port directly to your socket ID.
+    When you call bind(), the operating system takes your File Descriptor (the int) and the sockaddr_in structure (IP and Port) and locks them together in a master kernel lookup table.
     Return Value and Error Handling
         0: On success.
         SOCKET_ERROR (which is defined as -1): On failure.
@@ -119,3 +124,81 @@ v. Unlike Linux, where network functions work instantly, Windows requires you to
     Return Value
     0: On success.
     SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+
+vi. listen() - The listen() function in Windows prepares a server socket to accept incoming client connections.
+It transforms an active socket (used to initiate connections) into a passive socket (used to wait for connections).
+When a client tries to connect to your server, Windows handles the initial handshake (the TCP 3-way handshake) automatically in the background.
+The listen() function tells Windows to set up a holding area—called the backlog queue—to store these successfully connected clients until your application is ready to process them.
+Before you call listen(), your file descriptor is an active socket—meaning it is configured to send out connections, not receive them.
+When you call listen(server_fd, backlog), the OS changes that file descriptor’s entry in the kernel table to a passive socket. The OS instantly creates two internal memory queues specifically for that integer file descriptor:
+    The SYN Queue (Incomplete Connections): Holds clients currently processing the TCP 3-way handshake.
+    The Accept Queue (Completed Connections): Holds clients that have finished the handshake and are fully connected, waiting for your code. The maximum size of this queue is determined by your backlog argument.
+
+Values/arguments generally passed:
+    1. sockfd (The Socket File Descriptor)
+    What it is: The integer handle of the socket you want to modify.
+    What it does: This tells the operating system which specific socket is being converted from active to passive mode.
+    Requirement: This socket must have already been successfully created with socket() and bound to an address using bind().
+
+    2. backlog (The Queue Limit)
+    What it is: An integer that defines the maximum length of the Accept Queue (the queue holding fully verified connections ready for accept()).
+    What it does: It acts as a safety valve. If your program is slow to call accept() and the queue fills up to this number, the operating system will refuse new incoming connection requests from clients.
+    Best Practice: Instead of hardcoding a number like 10 or 20, you should pass the system constant SOMAXCONN. This tells the OS to set the backlog queue to the maximum allowable size supported by your operating system configuration (often hundreds or thousands of connections).
+
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+
+
+first we create a socket.
+next, we bind that socket to an ip address and a port number.
+now, the socket is ready for listening 
+then, we use the listen() function, this function turns the fd from active to passive fd (only listening) in the kernel and then creates two queues, one SYN queue which holds the unverified connections and accept queue, which holds the verified connections and are ready to be listened to from the program i.e., are ready to send the data
+when we use the recv(), on the original fd, it pops the oldest client, gives it a new fd/socket and assigns it a new 4-way tuple in the kernel and from now on whatever new info is sent to the server from this connected system is sent only to the specified newly created fd's socket buffer.
+
+
+
+vii. accept() - extracts the oldest connection request from the Accept Queue of your passive listening socket.
+It completes the connection process by instantiating a completely new socket for that specific client, allowing your server to communicate with them without blocking new incoming requests.
+When you call accept(), the operating system kernel performs three automated steps:
+    1. Pops the Client: It removes the oldest verified connection from the listening socket's Accept Queue.
+    2. Creates a New Socket/FD: It allocates a completely new socket object in kernel memory and returns a brand-new file descriptor (integer handle) linked strictly to that client.
+    3. Locks the 4-Tuple: It binds the client's specific information ([Client IP, Client Port, Server IP, Server Port]) to this new file descriptor.
+    From that moment on, all future data sent by that specific client routes directly to the new file descriptor's buffer, leaving your original listening descriptor completely free to accept the next client.
+
+Values/arguments generally passed:
+    int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+    1. sockfd: The original listening file descriptor (the passive one created by listen()).
+    2. addr: A pointer to an empty sockaddr structure (typically a casted struct sockaddr_in).The OS will automatically fill this structure with the connecting client's IP address and port number so your program knows who just connected.
+    3. addrlen: A pointer to an integer containing the size of the addr structure. The OS updates this value with the actual number of bytes it wrote into the structure.
+        The socklen_t data type is an unsigned integer type used exclusively to store the byte size of socket address structures (like struct sockaddr_in or struct sockaddr).
+        On almost all modern 32-bit and 64-bit operating systems (including Linux and Windows), socklen_t is simply a custom nickname (a typedef) for a standard 32-bit unsigned integer:
+        typedef unsigned int socklen_t;
+        In the early days of Unix networking, programmers used a standard signed int or a size_t for address lengths.However, as computer architectures moved from 16-bit to 32-bit and 64-bit systems, the byte sizes of standard integers changed drastically across different systems.
+        To prevent network code from breaking or causing critical memory overflow bugs when compiled on different machines, operating system designers introduced socklen_t as a universal, locked-in standard specifically for networking functions.
+
+Return Value
+    1. On SuccessReturns a non-negative integer (e.g., 3, 4, 5).
+    This integer is a brand-new socket file descriptor handle dedicated exclusively to that single connected client.
+    You will pass this newly returned integer to functions like recv() and send() to read and write messages to that specific client, while your original descriptor stays dedicated to listening for more connections.
+    2. On FailureReturns -1 (On Windows/Winsock, this is explicitly defined as the macro constant INVALID_SOCKET, which also mathematically evaluates to an unsigned representation of -1).
+    If it returns a failure value, no new socket is created, the Accept queue is unmodified, and you must check the system error codes to find out what went wrong:
+        On Linux: It populates the global errno variable.
+        On Windows: You must call the function WSAGetLastError().
+
+
+viii. recv() - reads the data that has arrived from a remote system over an active network socket connection.
+When a client sends data across the internet to your server, your application code does not read it straight off the wire. The operating system kernel manages the traffic first.
+    1. The Arrival: Packets hit your network card. The OS uses the 4-tuple rule to identify which specific client descriptor (client_skt) owns the data.
+    2. The Staging Area: The OS drops the raw bytes into a private kernel buffer allocated to that specific socket descriptor.
+    3. The recv() Execution: When your program calls recv(), the OS copies the requested number of bytes out of that dark kernel buffer and moves them straight into your program's local memory variable (buffer).
+    4. The Purge: Once the bytes are successfully copied into your application, the OS deletes them from its internal staging area to free up room for subsequent incoming data.
+
+Values/arguments generally passed:
+int recv(SOCKET s,char   *buf,int    len,int    flags);
+    s: The identifier socket handle for the target client (client_skt).You never call this on your passive listening socket (server_skt).
+    buf: A pointer to a local array in your code where the incoming text bytes should be deposited.
+    len: The maximum number of bytes you want to copy into your buffer.You typically pass sizeof(buffer) - 1 to leave space for a strict null terminator (\0) so your string prints cleanly.
+    flags: Used to alter the function's reading behaviors (e.g., peering at data without erasing it using MSG_PEEK). For standard operations, you pass 0.
