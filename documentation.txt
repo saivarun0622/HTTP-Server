@@ -18,7 +18,13 @@ ii. The url is translated into an IP address. - this IP address is the address o
 iii. The request is sent to that server using the HTTP protocol (HTTP uses the TCP/IP protocol stack by default).
 iv. The TC/IP stack does all the routing so that the request is sent to the server properly
 iv. The server receives the request and responds back to the requested client with the required file links, web pages, etc using the same TCP/IP stack.
+v. Both the HTTP request and response are simple plain texts.
 
+reference for HTTP Response from Server to Client:
+    https://www.google.com/search?sca_esv=9d56cc0bc26ac8f2&sxsrf=APpeQntSQ097pyhM-_eCwTu_8MAAhE7sfg:1786540480782&q=response+HTTP+request+template&uds=AJ5uw1_a2D0D09lxm8gpKKOTUn4rWTHjNO74lcln2t_PCRdI_a4j2YGUdxWt1NOxffP2DeCGobj6FiWLMJU_BEDLGkfIm9WKYqxuf-XrUpFT1igS86tjaANDALzvs1f9H90s2CSAdSst8QOKtN_T2S8l3cZ18TQqo3vFXHwKxJ4vlD_g_mb4iXg&udm=2&sa=X&ved=2ahUKEwiaiO_1lZuWAxXCTmwGHZL2OvcQxKsJKAB6BAgUEAE&ictx=0&biw=1536&bih=695&dpr=1.25#sv=CAMSURoyKhBlLW9Mb0YwaS1ONTFkc3NNMg5vTG9GMGktTjUxZHNzTToOaTB6UjV3UXlqUzNTdE0gBCoXCgFzEhBlLW9Mb0YwaS1ONTFkc3NNGAEwARgHILqRrhBKCBABGAEgASgB
+
+reference for HTTP Request from Client to Server:
+    https://www.google.com/search?sca_esv=9d56cc0bc26ac8f2&sxsrf=APpeQnseL-NQ8UJzOgrxFmAxOQnjSMTMMg:1786540624332&q=HTTP+request+template&uds=AJ5uw1_a2D0D09lxm8gpKKOTUn4rf_BCh98W3p5pJkf0EukrmGdXrvLOZLZnPdZzZuNkUdrHQ3XxGOpqqRj7YWbno_T2SoGx4Gi11un4eVMiV3yI1V7sk3g&udm=2&sa=X&ved=2ahUKEwi4yKi6lpuWAxXLSmwGHfmaO_8Qkc0JKAB6BAgVEAE&ictx=0&cshid=1786540740026944&biw=1536&bih=695&dpr=1.25#sv=CAMSURoyKhBlLWNvN1ZaWm1Wb2ltZFZNMg5jbzdWWlptVm9pbWRWTToOZy16bXkyZ2FES0FBbk0gBCoXCgFzEhBlLWNvN1ZaWm1Wb2ltZFZNGAEwARgHIKvwmNANSggQARgBIAEoAQ
 
 
 Explanation of any additonal elements:
@@ -254,3 +260,27 @@ Values/arguments generally passed:
     Argument 5: int optlen (sizeof(reuse_option))
         What it does: This tells the operating system kernel the exact memory size (in bytes) of the variable you passed into Argument 4.
         In your code: You pass sizeof(reuse_option), which evaluates to 1 byte because it is a char. This acts as a memory safety guard, letting the kernel know exactly how many bytes it needs to read from your pointer without overstepping your variable bounds.
+
+
+xii. The send() function is used to transmit data bytes outward over an active, connected network socket.
+Just like recv() pulls data out of an isolated buffer, send() does the reverse.
+It pushes data from your program's local memory variables directly into the operating system kernel's network buffer pool so the hardware can broadcast it to the client.
+
+Values/arguments generally passed:
+    int send(SOCKET s,const char *buf,int len,int flags);
+    Argument 1: SOCKET s (e.g., client_skt)
+        What it does: Specifies which active connection pipeline you want to send the message through.
+        Details: You must pass the unique client socket handle returned by accept(), never your passive background server_skt.This ensures the OS maps the packet headers to the correct 4-tuple destination.
+    Argument 2: const char *buf (e.g., client_buf or http_header)
+        What it does: A pointer to the local data buffer in your application RAM that holds the message you want to transmit.
+        Details: It expects a simple character array (char *) containing your text strings, raw binary chunks, or HTML page context sheets.
+    Argument 3: int len (e.g., (int)strlen(client_buf))
+        What it does: Tells the operating system kernel exactly how many bytes of data from that buffer pointer it should copy and transmit down the wire.
+        Details: If your buffer can hold 1000 characters but your text message is only 5 characters long (like "HELLO"), you should pass 5 (or use strlen()) so the system doesn't broadcast random leftover garbage memory.
+    Argument 4: int flags
+        What it does: Allows you to change the routing behavior of the network packet transmission stream.
+        Details: In almost all standard network application code frameworks, you pass a plain 0 to execute a standard sequential transmission.
+
+Return Values
+    Positive Integer (> 0): Success! The value tells you exactly how many bytes the operating system successfully accepted into its outgoing buffer pool.
+    SOCKET_ERROR (-1): The data transfer link failed. The client may have closed their application unexpectedly or pulled the network cable. You must query WSAGetLastError() immediately to catch the exact fault code.
