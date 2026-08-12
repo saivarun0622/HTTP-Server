@@ -202,3 +202,55 @@ int recv(SOCKET s,char   *buf,int    len,int    flags);
     buf: A pointer to a local array in your code where the incoming text bytes should be deposited.
     len: The maximum number of bytes you want to copy into your buffer.You typically pass sizeof(buffer) - 1 to leave space for a strict null terminator (\0) so your string prints cleanly.
     flags: Used to alter the function's reading behaviors (e.g., peering at data without erasing it using MSG_PEEK). For standard operations, you pass 0.
+
+
+ix. SO_REUSEADDR stands for Socket Option: Reuse Address.
+It is a built-in configuration flag that you pass to the operating system kernel using the setsockopt() function.
+It alters the strict rules governing how ports are allocated to applications.
+By default, the operating system enforces a "one port, one application" rule to prevent data collisions.
+If a server program closes or crashes, the OS locks that port in a temporary safety state called TIME_WAIT for 1 to 4 minutes.During this window, you cannot re-bind to it, which causes your 10048 error.
+When you enable SO_REUSEADDR, you are explicitly commanding the operating system kernel to bypass the TIME_WAIT lockdown.
+    It tells the OS: "If this port is currently stuck in a cleanup cycle from a previous run of this exact same program, ignore the safety timer and let me bind to it immediately."
+
+
+x. The setsockopt() function stands for Set Socket Option.
+It is a built-in networking function used to configure and fine-tune the behavior of an already created socket descriptor.
+When you first create a socket using socket(), the operating system assigns it a set of default behaviors standard for TCP or UDP protocols.
+The setsockopt() function allows you to reach directly into the operating system kernel and override those default configurations to suit your application's needs (such as enabling port reuse, setting timeouts, or adjusting internal buffer limits).
+
+
+Values/arguments generally passed:
+    int setsockopt(SOCKET s,int level,int optname,const char *optval,int optlen);
+    s: The socket descriptor file handle you want to modify (e.g., server_skt).
+    level: The layer of the network stack where the option resides.For general socket configurations, you pass the constant SOL_SOCKET (Socket Level).If you are adjusting raw protocol layers, you might pass IPPROTO_TCP or IPPROTO_IP.
+    optname: The specific setting configuration flag you want to turn on or change (e.g., SO_REUSEADDR to allow port reclaiming).
+    optval: A pointer to the value or variable containing the configuration state you want to apply.For simple toggle features, you pass a pointer to a character variable containing 1 (for True/On) or 0 (for False/Off).
+    optlen: The memory byte size of the variable passed into optval (typically computed using sizeof()).
+
+Return Values
+    1. Success: Returns 0. The operating system has instantly applied your configuration adjustments to the kernel state table.
+    2. Failure: Returns SOCKET_ERROR (which evaluates to -1).
+
+
+xi. The setsockopt() function allows your program to communicate directly with the operating system kernel to configure or override default settings for a specific network socket.
+    setsockopt(server_skt, SOL_SOCKET, SO_REUSEADDR, &reuse_option, sizeof(reuse_option));
+When you create a socket, the OS applies generic, protective settings to it.
+setsockopt() acts as a master configuration switch.
+In your code, it tells the Windows kernel: "Change the strict port binding rule for this specific socket descriptor right now."
+
+Values/arguments generally passed:
+    Argument 1: SOCKET s (server_skt)
+        What it does: This identifies which specific socket you are changing the settings for.
+        In your code: You pass server_skt. This ensures you are modifying your main server listener gateway before you attempt to attach it to port 8095.
+    Argument 2: int level (SOL_SOCKET)
+        What it does: Network stacks have multiple conceptual layers (the general socket layer, the IP layer, the TCP layer, etc.).This argument specifies which layer your configuration setting belongs to.
+        In your code: You pass SOL_SOCKET (Socket Level). This tells the OS that you are changing a generic, top-level socket behavior rather than fine-tuning a deep, raw protocol setting.
+    Argument 3: int optname (SO_REUSEADDR)
+        What it does: This is the exact feature or property you want to adjust.
+        In your code: You pass SO_REUSEADDR (Reuse Address).This tells the kernel to override its normal 4-minute TIME_WAIT lock safety rule.It commands the OS to allow your server to immediately hijack and bind to port 8095 if it was left hanging by a sudden exit or crash.
+    Argument 4: const char *optval (&reuse_option)
+        What it does: This is a pointer to the data value you want to set for your chosen option.Because options can be true/false toggles, integer sizes, or time values, the function requires a reference link (&) to read the data out of your program's memory.
+        In your code: You created a character variable char reuse_option = 1; (where 1 means True/On) and passed its address &reuse_option. This explicitly toggles the port reuse feature to Active.
+    Argument 5: int optlen (sizeof(reuse_option))
+        What it does: This tells the operating system kernel the exact memory size (in bytes) of the variable you passed into Argument 4.
+        In your code: You pass sizeof(reuse_option), which evaluates to 1 byte because it is a char. This acts as a memory safety guard, letting the kernel know exactly how many bytes it needs to read from your pointer without overstepping your variable bounds.
