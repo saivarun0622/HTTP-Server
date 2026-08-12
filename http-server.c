@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include<string.h>
 #include <winsock2.h>
 #include <Windows.h>
 
@@ -31,7 +32,7 @@ int main()
     SOCKET server_skt = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (server_skt == INVALID_SOCKET)
     {
-        printf("Socket Creation Failed with Error Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
+        printf("\nSocket Creation Failed with Error Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
         closesocket(server_skt);
         WSACleanup();
         exit(0);
@@ -46,11 +47,11 @@ int main()
         //Modiying server_socket options
         if(setsockopt(server_skt,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(reuse))==SOCKET_ERROR)
         {
-            printf("Failed to modify the Socket..May face issues while reconnecting to the same previous client.");
+            printf("\nFailed to modify the Socket..May face issues while reconnecting to the same previous client.\nError Code: %d",WSAGetLastError());
         }
         else
         {
-            printf("Socket configurations modified successfully..\n");
+            printf("Socket Configurations Modified Successfully\n");
         }
 
     }
@@ -66,7 +67,7 @@ int main()
     // Binding the Socket to the localhost and a port
     if (bind(server_skt, (const struct sockaddr *)&server_addr, sizeof(server_addr)) == SOCKET_ERROR)
     {
-        printf("Unable To Bind The Socket\nError Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
+        printf("\nUnable To Bind The Socket\nError Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
         closesocket(server_skt);
         WSACleanup();
         exit(0);
@@ -79,7 +80,7 @@ int main()
     // Listening to Socket that is Successfully Binded
     if (listen(server_skt, SOMAXCONN) == SOCKET_ERROR)
     {
-        printf("Unable To Handle Requests Right Now\n.Error Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
+        printf("\nUnable To Handle Requests Right Now\n.Error Code: %d.\nPlease restart and try again..\n", WSAGetLastError());
         closesocket(server_skt);
         WSACleanup();
         exit(0);
@@ -96,7 +97,7 @@ int main()
     // Accepting and Creating Connection With the Requesting Client
     if ((client_skt = accept(server_skt, (struct sockaddr *)&client_addr, &client_sock_len)) == INVALID_SOCKET)
     {
-        printf("Unable to Establish Connection with Accepted Client.Error Code: %d.\nPlease Try Again Later..\n", WSAGetLastError());
+        printf("\nUnable to Establish Connection with Accepted Client.Error Code: %d.\nPlease Try Again Later..\n", WSAGetLastError());
         closesocket(server_skt);
         WSACleanup();
         exit(0);
@@ -131,19 +132,11 @@ int main()
         memset(client_buf, 0, sizeof(client_buf));
 
         // Reading from the Buffer
-        if (((bytesRead = recv(client_skt, client_buf, sizeof(client_buf) - 1, 0)) == 1) && (client_buf[0] == '`'))
+        bytesRead = recv(client_skt, client_buf, sizeof(client_buf) - 1, 0);
+
+        if (bytesRead == 0)
         {
-            printf("Disconnecting from the Client..\n");
-            closesocket(client_skt);
-            WSACleanup();
-            printf("Disconnected from the Client Successfully..\n");
-            printf("Closing the Server Socket for Safety Purposes..\n");
-            closesocket(server_skt);
-            exit(0);
-        }
-        else if (bytesRead == 0)
-        {
-            printf("Client Disconnected, Terminating the Connection..\n");
+            printf("\nClient Disconnected, Terminating the Connection..\n");
             closesocket(client_skt);
             WSACleanup();
             printf("Terminated the Connection Successfully..\n");
@@ -153,7 +146,7 @@ int main()
         }
         else if (bytesRead == SOCKET_ERROR)
         {
-            printf("Facing Network/Socket Issues...\n");
+            printf("\nFacing Network/Socket Issues...\n");
             closesocket(client_skt);
             WSACleanup();
             printf("Terminated the Connection Successfully..\n");
@@ -161,17 +154,47 @@ int main()
             closesocket(server_skt);
             exit(0);
         }
-        else
+
+        //Checking if we(the server) has received any GET requests and responding back
+        else if (strncmp(client_buf,"GET",3)==0)
         {
-            /* Used for checking whether connection is being established from the browser.
+            printf("\nReceived GET Request..\nSending Response..\n");
+            int statusBytesSent;
+            int headerBytesSent;
+            char stastusLine[]="HTTP/1.1 200 OK\r\n";
+            char headers[]="Content-Type: text/html\r\nContent-Length: 156\r\n\r\n";
+            char responseBody[]="<html><body style='display:flex;justify-content:center;align-items:center;'><h1 style='font-size:90px;font-style:oblique;'>Loveday K Ball</h1></body></html>";
+            char serverErrorResponseBody[]="<html><body style='display:flex;flex-wrap:wrap;justify-content:center;align-items:center;align-content:center;'><h1 style='font-size:90px;font-style:oblique;width:100vw;text-align:center;'>Error: 502</h1><h1 style='font-size:90px;font-style:oblique;width:100vw;text-align:center;'>Bad Gateway</h1></body></html>";
+            statusBytesSent=send(client_skt,stastusLine,strlen(stastusLine),0);
+            headerBytesSent=send(client_skt,headers,strlen(headers),0);
+            
+            //Checking if status-lines and headers are sent properly
+            if(statusBytesSent==SOCKET_ERROR || headerBytesSent==SOCKET_ERROR)
+            {
+                printf("\nCouldn't Send Response Properly. Reconfigure Server and try again..\nError Code: %d\n",WSAGetLastError());
+            }
+            else
+            {
+                // printf("\nStatus Code OK..\nSending HTTP-Response Body..\n");
+                printf("\nStatus Code OK.. Status-Code Bytes Sent: %d\nHTTP-Header OK.. Header Bytes Sent: %d\n",statusBytesSent,headerBytesSent);
+
+                /*send(client_skt,responseBody,strlen(responseBody),0); - Checking if data is sent*/
+
+                send(client_skt,responseBody,strlen(responseBody),0);
+            }
+        }
+        /*else
+        {
+            // Used for checking whether connection is being established from the browser.
             for (int i=0;i<maxBufferLen;i++)
             {
                 printf("%c",client_buf[i]);
             }
-            */
+            
             // printf("Successfully Read %dbytes from the client..\n",bytesRead);
             // printf("Message: %s\n",client_buf);
         }
+        */
     }
 
     // Closing both the client and the server sockets and Terminating Network Engine
