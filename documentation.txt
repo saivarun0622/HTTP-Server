@@ -284,3 +284,33 @@ Values/arguments generally passed:
 Return Values
     Positive Integer (> 0): Success! The value tells you exactly how many bytes the operating system successfully accepted into its outgoing buffer pool.
     SOCKET_ERROR (-1): The data transfer link failed. The client may have closed their application unexpectedly or pulled the network cable. You must query WSAGetLastError() immediately to catch the exact fault code.
+
+
+xiii. itoa(numeric value, char array buffer, number system used(usually 10))
+Values/arguments generally passed:
+    1. numeric value: The input number to convert (e.g., 5).
+    2. char array buffer: The destination buffer where the output characters will be saved.
+    3. 10: The number base (Base-10 / standard decimal system).
+        Example Result: If numeric value is the number 42, after this line executes, char array buffer stores the text string "42".
+
+
+
+xiv. sprintf(char *buffer, const char *format, ...);
+Values/arguments generally passed:
+    buffer: The pointer to the character array where the final text will be stored.
+    format: The template string containing text and format specifiers (like %d for integers, %f for floats).
+    ...: The matching variables that replace the format specifiers.
+
+Return Value
+    It returns the total number of characters written to the array, excluding the final null-terminator (\0).
+
+
+xv. sscanf(const char *buffer, const char *format, *storing_buffer);
+Values/arguments generally passed:
+    buffer: The source string that you want to read and extract data from.
+    format: The template string containing format specifiers (like %d, %f, %s) that dictate how the text should be split.
+    storing_buffer: The pointers [(memory addresses, using &) to the variables] where the extracted data will be saved.
+
+Return Value
+    It returns the number of successfully matched and assigned items.
+    If a matching failure happens before any assignment, it returns EOF(-1).
