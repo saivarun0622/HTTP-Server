@@ -1,0 +1,60 @@
+# WinSock HTTP Server Project Documentation
+## GitHub Repository Description (About Section)
+A low-level, high-performance HTTP/1.1 web server built from scratch in C using the WinSock2 API, featuring robust heap memory optimization, dynamic file system routing, and custom fault recovery.
+------------------------------
+## WinSock C HTTP Web Server
+A lightweight, zero-dependency, low-level HTTP/1.1 web server implemented from the ground up in C. Leveraging the native Windows Sockets 2 (WinSock2) architecture, this project serves as a robust demonstration of network socket programming, standard-compliant HTTP protocol processing, binary file streaming, and rigorous manual memory safety.
+## 🚀 Technical Architecture & Core Features
+
+* Native WinSock2 Engine: Built directly on top of the Windows core networking stack (winsock2.h), managing the complete socket lifecycle from subsystem initialization (WSAStartup) through connection handling to systematic cleanup (WSACleanup).
+* Socket Level Optimizations: Modifies underlying socket options using SO_REUSEADDR via setsockopt. This structural decision bypasses the standard TCP TIME_WAIT state, enabling immediate port re-binding upon server reboots and eliminating connection port lockouts.
+* Deterministic Stack Protection: Utilizes a strict heap-allocation model (malloc/free) with a generous 75 KB input window (1024 * 75 bytes) to ingest incoming packets. By deliberately avoiding Variable Length Arrays (VLAs), the application maintains a fixed stack frame footprint and remains secure against stack overflow vulnerabilities during heavy request surges.
+* HTTP/1.1 GET Protocol Parser: Implements an in-place string tokenizer using strncmp and bounded sscanf formats to securely extract URL targets, isolate sub-resource pathways, and safely log diagnostic client traffic metrics to the console.
+* Dynamic Binary Content Streaming: Resolves filesystem paths relative to a dedicated server folder, calculating asset sizes dynamically via low-level stream tracking (fseek, ftell, rewind). Files are ingested into memory as binary streams to preserve formatting and prevent data corruption during network transmission.
+* Fault Isolation & Custom Fallbacks: Features an integrated error interceptor. If a requested file fails to resolve on the local filesystem, the server gracefully catches the error state, releases active memory buffers, and falls back to an internally generated, responsive 404 HTML page featuring precise Content-Length headers.
+
+## 📂 Project Structure
+To execute the server seamlessly, ensure your project directory mirrors the following organizational layout:
+
+├── server.c             # Main C server implementation source code
+└── Web Pages/           # Local root directory for web site assets
+    ├── index.html       # Default home page asset (Served automatically at "/")
+    └── [other assets]   # Supplemental HTML documents, style sheets, or client scripts
+
+## 🛠️ Compilation & Build Instructions
+This codebase is optimized for compiling natively on Microsoft Windows environments using either the MinGW (GCC) or the Microsoft Visual C++ (MSVC) toolchain.
+## Option 1: Compiling via GCC (MinGW)
+Because this project interfaces directly with native Windows subsystem binaries, you must explicitly instruct the compiler to link the WinSock2 library using the -lws2_32 link flag:
+
+gcc server.c -o web_server.exe -lws2_32
+
+## Option 2: Compiling via MSVC (Developer Command Prompt)
+
+cl.exe server.c /link WS2_32.lib
+
+## 💻 Deployment & Execution Blueprint
+
+   1. Create a directory named Web Pages in the same directory as your compiled executable and place a valid index.html entry asset inside it.
+   2. Initialize the compiled server application via your command terminal:
+   
+   ./web_server.exe
+   
+   3. The server runtime will conduct system checks and start listening for connection requests:
+   
+   Network Engine Initialized Successfully
+   Socket Created Sucessfully. Ready To Bind The Socket
+   Socket Configurations Modified Successfully
+   Socket Binded Successfully. Ready To Listen to Requests
+   
+   4. Interact with the live deployment by opening a standard browser page and navigating to:
+   
+   http://localhost:8095/
+   
+   
+## 📋 Protocol Specifications
+
+* Default Operational Port: 8095
+* Network Protocol Layer: TCP / IPv4 (AF_INET, SOCK_STREAM)
+* Maximum Inbound Buffer Range: 76,800 Bytes (1024 * 75)
+* Supported Transport Verbs: Bounded HTTP GET parsing
+* Error Handling Profile: Safe memory reclamation and programmatic socket closure on unexpected client dropouts or 404 file anomalies.
