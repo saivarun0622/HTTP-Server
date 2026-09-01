@@ -1,0 +1,377 @@
+Objective: Coding/Building a custom HTTP server using C.
+
+
+
+Pre-Requisitve Explanations:
+i. HTTP stands for Hypertext Transfer Protocol.
+It is the underlying set of rules used to pass text, images, sound, and video files across the World Wide Web between a web browser and a web server.
+
+ii. The HTTP runs on TCP/IP protocol i.e., there are TCP/IP packets and inside them, there are HTTP packects/data.
+
+iii. Basically, HTTP is a protocol to fetch some kind of data from the server.
+
+
+
+Working of Server:
+i. We Enter a url of a company's website like "google.com" .
+ii. The url is translated into an IP address. - this IP address is the address of the company's server hosting/containing the file links, webpages, etc in it.
+iii. The request is sent to that server using the HTTP protocol (HTTP uses the TCP/IP protocol stack by default).
+iv. The TC/IP stack does all the routing so that the request is sent to the server properly
+iv. The server receives the request and responds back to the requested client with the required file links, web pages, etc using the same TCP/IP stack.
+v. Both the HTTP request and response are simple plain texts.
+
+reference for HTTP Response from Server to Client:
+    https://www.google.com/search?sca_esv=9d56cc0bc26ac8f2&sxsrf=APpeQntSQ097pyhM-_eCwTu_8MAAhE7sfg:1786540480782&q=response+HTTP+request+template&uds=AJ5uw1_a2D0D09lxm8gpKKOTUn4rWTHjNO74lcln2t_PCRdI_a4j2YGUdxWt1NOxffP2DeCGobj6FiWLMJU_BEDLGkfIm9WKYqxuf-XrUpFT1igS86tjaANDALzvs1f9H90s2CSAdSst8QOKtN_T2S8l3cZ18TQqo3vFXHwKxJ4vlD_g_mb4iXg&udm=2&sa=X&ved=2ahUKEwiaiO_1lZuWAxXCTmwGHZL2OvcQxKsJKAB6BAgUEAE&ictx=0&biw=1536&bih=695&dpr=1.25#sv=CAMSURoyKhBlLW9Mb0YwaS1ONTFkc3NNMg5vTG9GMGktTjUxZHNzTToOaTB6UjV3UXlqUzNTdE0gBCoXCgFzEhBlLW9Mb0YwaS1ONTFkc3NNGAEwARgHILqRrhBKCBABGAEgASgB
+
+reference for HTTP Request from Client to Server:
+    https://www.google.com/search?sca_esv=9d56cc0bc26ac8f2&sxsrf=APpeQnseL-NQ8UJzOgrxFmAxOQnjSMTMMg:1786540624332&q=HTTP+request+template&uds=AJ5uw1_a2D0D09lxm8gpKKOTUn4rf_BCh98W3p5pJkf0EukrmGdXrvLOZLZnPdZzZuNkUdrHQ3XxGOpqqRj7YWbno_T2SoGx4Gi11un4eVMiV3yI1V7sk3g&udm=2&sa=X&ved=2ahUKEwi4yKi6lpuWAxXLSmwGHfmaO_8Qkc0JKAB6BAgVEAE&ictx=0&cshid=1786540740026944&biw=1536&bih=695&dpr=1.25#sv=CAMSURoyKhBlLWNvN1ZaWm1Wb2ltZFZNMg5jbzdWWlptVm9pbWRWTToOZy16bXkyZ2FES0FBbk0gBCoXCgFzEhBlLWNvN1ZaWm1Wb2ltZFZNGAEwARgHIKvwmNANSggQARgBIAEoAQ
+
+
+Explanation of any additonal elements:
+i. <windows.h>: Used for the sleep(milliseconds) function for cool-off time of 1 sec.
+
+ii. <winsock2.h>: stands for Windows Sockets 2 Standard Header. It is the core API header file used for network programming on the Windows operating system.
+While Linux uses <sys/socket.h> for networking, Windows uses <winsock2.h> to expose Microsoft's Windows Sockets (Winsock) API architecture.
+The file acts as a technical blueprint mapping Microsoft Win32 API functions directly to the Windows network driver (ws2_32.dll). It provides:
+    Socket Controls: Basic connection primitives like socket(), bind(), listen(), accept(), connect(), send(), and recv().
+    Windows Extensions: Special platform-specific functions prefixed with "WSA" (e.g., WSAStartup(), WSACleanup(), WSAGetLastError()).Network Objects: Custom data structures tailored for Windows memory models, such as WSADATA and SOCKET types.
+
+iii. Sockets: are end-points for nodes through which different nodes transfer data across internet.
+
+
+
+Explanation of Functions:
+i. socket() - The function socket() depends slightly on whether you are compiling for a Unix-like system (Linux/macOS) or for Windows (using Winsock), though the parameters they take are identical.
+    1. Linux / macOS Protocol (<sys/socket.h>)On POSIX-compliant systems, the function returns a standard file descriptor integer
+    int socket(int domain, int type, int protocol);
+    2. Windows Protocol (<winsock2.h>)On Windows, it returns a custom unsigned pointer-sized data type called SOCKET
+    SOCKET socket(int af, int type, int protocol);
+    socket() in windows returns a SOCKET primitive descriptor type, which is internally defined as a 64-bit unsigned integer handle (unsigned long long) on 64-bit systems.On a 64-bit Windows build, UINT_PTR resolves to an unsigned __int64. On a 32-bit Windows build, it resolves to an unsigned int.
+    When the socket() function fails on Windows, it returns the number 18446744073709551615 (on 64-bit systems).Because that massive number is hard to remember, the Windows headers give it a name: INVALID_SOCKET.
+
+    Values/arguments generally passed:
+        a. (domain/af) - AF_INET (int equivalent of 2: specifies which type of ip family address in this case, it belongs to IPv4 address family.)
+        b. type - SOCK_STREAM (int equivalent of 1: specifies which type of socket for data packet whether TCP or UDP in this case, its TCP.)
+        c. protocol - IPPROTO_IP (int equivalent of 0: selects appropriate type of socket)
+
+
+ii. A sockaddr_in is a data structure used in network programming (like C or C++) to store an IPv4 internet address and port number. It makes it easy to set up or connect to a network socket by breaking down the address family, port, and IP into separate, readable fields.
+After declaring a variable of datatype struct sockaddr_in, we need to erase the memory which contains garbage after being created and set the values to 0 before passing this variable to the bind() function.
+
+    In this structure's varaible, we set the port number using the htons(port_no) function.
+        The htons() function stands for Host to Network Short, and its sole purpose is to convert your port number from the computer's CPU byte order to the standard network byte order.
+        Without htons(), a different computer on the network will misread your port number, causing connection errors.
+
+
+iii. bind() - is a system function that assigns a specific local IP address and port number to an anonymous socket.
+It takes the raw "network engine" you created with socket() and anchors it to a physical location on your computer so it can start receiving data.
+What bind() Does in 3 Simple Steps
+    Reads the Address: It opens the sockaddr_in memory block you provided, using the AF_INET tag as its guide to safely extract the IP and port.
+    Checks Availability: It asks the operating system, "Is any other program already using this port number?" If a program is using it, bind() fails.
+    Wires the Connection: If the port is free, it locks that IP and port directly to your socket ID.
+    When you call bind(), the operating system takes your File Descriptor (the int) and the sockaddr_in structure (IP and Port) and locks them together in a master kernel lookup table.
+    Return Value and Error Handling
+        0: On success.
+        SOCKET_ERROR (which is defined as -1): On failure.
+
+    Values/arguments generally passed:
+        a. SOCKET s - The first argument. Instead of a standard integer descriptor (int), Windows uses a dedicated SOCKET data type (which is internally an unsigned pointer-sized integer). This is the ID returned by the Winsock socket() function.
+        b. const sockaddr *name - The second argument. A pointer to the generic sockaddr structure. Just like in Linux, you pass your IPv4 sockaddr_in structure here and cast it to (const sockaddr*).
+        c. int namelen: The third argument. Unlike Linux which uses socklen_t, Windows simply uses a standard int to represent the size of the address structure in bytes (e.g., sizeof(sockaddr_in)).
+
+
+iv. By running memset(), you turn every single bit across all 16 bytes of that variable into a clean slate of absolute zeros.
+Because every single byte is now exactly 0, you have successfully satisfied the operating system's strict requirement for the hidden sin_zero padding fields at the end of the structure.
+Now, when you assign your values next:
+    You overwriting Bytes 1–2 with AF_INET.
+    You overwriting Bytes 3–4 with your port.
+    You overwriting Bytes 5–8 with your IP address.
+    Bytes 9–16 automatically remain perfect zeros, exactly as the operating system demands!
+Now that the memory block is zeroed out and ready, we can write the code for assigning sin_family, sin_port, and sin_addr.
+    a. sin_family - set to AF_INET (tells the OS: "This is an IPv4 setup. I need to parse the next bytes specifically as a 2-byte port and a 4-byte IPv4 address.")
+    b. sin_port - assign your port number wrapped in the htons() function (e.g., htons(8080)).
+        The htons() Detail: Your computer's CPU processes numbers using Little-Endian format, but network routers read numbers using Big-Endian format (Network Byte Order). htons stands for Host-to-Network Short. It flips the bytes of your port number so network hardware can read it correctly.
+    c. sin_addr.s_addr - 32-bit Internet Protocol (IP) Address field typically assigned the constant INADDR_ANY.
+        The sin_addr field is actually a nested structure (struct in_addr), and s_addr is the specific variable inside it that holds the final 32-bit raw number of your IP.
+        Setting this value to INADDR_ANY assigns the wildcard IP 0.0.0.0. It tells your operating system: "Listen for incoming traffic on every single physical network card this computer has (Wi-Fi, Ethernet, and Localhost)." If you wanted to lock your server exclusively to your Wi-Fi card, you would use a function like inet_addr("192.168.1.50") here instead.
+
+
+v. Unlike Linux, where network functions work instantly, Windows requires you to "turn on" the networking engine before you can use any socket functions. You must initialize it using WSAStartup() at the beginning of main(), and clean it up using WSACleanup() at the end.
+    a. WSAStartup(MAKEWORD(2, 2), &wsaData) - Windows does not automatically load network resource libraries into memory for every application because it would waste system RAM. WSAStartup stands for Windows Sockets Aasynchronous Startup.
+        When you call this function, it does two primary things:
+        Loads the DLL: It forces Windows to immediately load the network communication driver library file (ws2_32.dll) into your program's active memory space.
+        Negotiates the Version: It checks if your computer supports the socket version you requested (via MAKEWORD(2,2)). If supported, it locks that version in place for your program and populates your wsaData struct with info about the system's network capabilities.
+
+        Values/arguments generally passed:
+            1. MAKEWORD(2, 2) - is a built-in Windows utility macro that combines two 8-bit numbers (bytes) into a single 16-bit number (a WORD).
+            Windows uses this 16-bit number to represent the version of Winsock you want to request.
+                The first number is the Minor version (2).
+                The second number is the Major version (2).
+            The WSAStartup() function expects its first parameter to be a single 16-bit integer representing the version, encoded in a specific way.Instead of forcing you to do confusing math (like hexadecimal byte-shifting), Microsoft provides MAKEWORD(2, 2). It automatically packages those two version numbers together into the exact format the operating system expects to request Winsock Version 2.2.
+
+            2.WSADATA - is a data structure defined by Windows. When you declare WSADATA wsaData;, you are creating a temporary information container that is completely empty.
+            You pass a pointer to this empty container into WSAStartup(&wsaData). The Windows operating system then fills this container with specific details about your computer's actual network features and capabilities.
+            If you look inside wsaData after WSAStartup runs successfully, it contains several fields
+                wVersion: The version of Winsock that Windows is actually going to let you use (usually 2.2).
+                wHighVersion: The absolute highest version of Winsock that your current computer's network card drivers can support.szDescription: A readable text string containing general status info about your Windows network implementation.szSystemStatus: A readable text string containing configuration or status info about the underlying hardware.
+            Your code does not usually need to read or use the information inside wsaData—you can safely ignore it after it gets filled. However, Windows strictly requires you to pass it because it serves as an official receipt showing that the operating system checked your system's hardware, verified compatibility, and successfully initialized the network subsystem for your app.
+    
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+    b. WSACleanup(void) - When your program is done running or is about to exit, calling this function tells the Windows operating system
+    Deregisters the App: "My application is no longer using any network drivers."
+    Unloads the DLL: Windows unloads ws2_32.dll from your program's memory and instantly frees up any RAM or kernel handles that were held open by your sockets.
+    If you don't call WSACleanup(), Windows will eventually clean up your program's memory when the process terminates completely, but leaving it out can cause resource leaks while your application runs.
+
+    Values/arguments generally passed:
+        1. void - It takes absolutely no arguments.
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+
+vi. listen() - The listen() function in Windows prepares a server socket to accept incoming client connections.
+It transforms an active socket (used to initiate connections) into a passive socket (used to wait for connections).
+When a client tries to connect to your server, Windows handles the initial handshake (the TCP 3-way handshake) automatically in the background.
+The listen() function tells Windows to set up a holding area—called the backlog queue—to store these successfully connected clients until your application is ready to process them.
+Before you call listen(), your file descriptor is an active socket—meaning it is configured to send out connections, not receive them.
+When you call listen(server_fd, backlog), the OS changes that file descriptor’s entry in the kernel table to a passive socket. The OS instantly creates two internal memory queues specifically for that integer file descriptor:
+    The SYN Queue (Incomplete Connections): Holds clients currently processing the TCP 3-way handshake.
+    The Accept Queue (Completed Connections): Holds clients that have finished the handshake and are fully connected, waiting for your code. The maximum size of this queue is determined by your backlog argument.
+
+Values/arguments generally passed:
+    1. sockfd (The Socket File Descriptor)
+    What it is: The integer handle of the socket you want to modify.
+    What it does: This tells the operating system which specific socket is being converted from active to passive mode.
+    Requirement: This socket must have already been successfully created with socket() and bound to an address using bind().
+
+    2. backlog (The Queue Limit)
+    What it is: An integer that defines the maximum length of the Accept Queue (the queue holding fully verified connections ready for accept()).
+    What it does: It acts as a safety valve. If your program is slow to call accept() and the queue fills up to this number, the operating system will refuse new incoming connection requests from clients.
+    Best Practice: Instead of hardcoding a number like 10 or 20, you should pass the system constant SOMAXCONN. This tells the OS to set the backlog queue to the maximum allowable size supported by your operating system configuration (often hundreds or thousands of connections).
+
+    Return Value
+    0: On success.
+    SOCKET_ERROR (which is -1): On failure. If it fails, you can call WSAGetLastError() to find out why.
+
+
+
+first we create a socket.
+next, we bind that socket to an ip address and a port number.
+now, the socket is ready for listening 
+then, we use the listen() function, this function turns the fd from active to passive fd (only listening) in the kernel and then creates two queues, one SYN queue which holds the unverified connections and accept queue, which holds the verified connections and are ready to be listened to from the program i.e., are ready to send the data
+when we use the recv(), on the original fd, it pops the oldest client, gives it a new fd/socket and assigns it a new 4-way tuple in the kernel and from now on whatever new info is sent to the server from this connected system is sent only to the specified newly created fd's socket buffer.
+
+
+
+vii. accept() - extracts the oldest connection request from the Accept Queue of your passive listening socket.
+It completes the connection process by instantiating a completely new socket for that specific client, allowing your server to communicate with them without blocking new incoming requests.
+When you call accept(), the operating system kernel performs three automated steps:
+    1. Pops the Client: It removes the oldest verified connection from the listening socket's Accept Queue.
+    2. Creates a New Socket/FD: It allocates a completely new socket object in kernel memory and returns a brand-new file descriptor (integer handle) linked strictly to that client.
+    3. Locks the 4-Tuple: It binds the client's specific information ([Client IP, Client Port, Server IP, Server Port]) to this new file descriptor.
+    From that moment on, all future data sent by that specific client routes directly to the new file descriptor's buffer, leaving your original listening descriptor completely free to accept the next client.
+
+Values/arguments generally passed:
+    int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+    1. sockfd: The original listening file descriptor (the passive one created by listen()).
+    2. addr: A pointer to an empty sockaddr structure (typically a casted struct sockaddr_in).The OS will automatically fill this structure with the connecting client's IP address and port number so your program knows who just connected.
+    3. addrlen: A pointer to an integer containing the size of the addr structure. The OS updates this value with the actual number of bytes it wrote into the structure.
+        The socklen_t data type is an unsigned integer type used exclusively to store the byte size of socket address structures (like struct sockaddr_in or struct sockaddr).
+        On almost all modern 32-bit and 64-bit operating systems (including Linux and Windows), socklen_t is simply a custom nickname (a typedef) for a standard 32-bit unsigned integer:
+        typedef unsigned int socklen_t;
+        In the early days of Unix networking, programmers used a standard signed int or a size_t for address lengths.However, as computer architectures moved from 16-bit to 32-bit and 64-bit systems, the byte sizes of standard integers changed drastically across different systems.
+        To prevent network code from breaking or causing critical memory overflow bugs when compiled on different machines, operating system designers introduced socklen_t as a universal, locked-in standard specifically for networking functions.
+
+Return Value
+    1. On SuccessReturns a non-negative integer (e.g., 3, 4, 5).
+    This integer is a brand-new socket file descriptor handle dedicated exclusively to that single connected client.
+    You will pass this newly returned integer to functions like recv() and send() to read and write messages to that specific client, while your original descriptor stays dedicated to listening for more connections.
+    2. On FailureReturns -1 (On Windows/Winsock, this is explicitly defined as the macro constant INVALID_SOCKET, which also mathematically evaluates to an unsigned representation of -1).
+    If it returns a failure value, no new socket is created, the Accept queue is unmodified, and you must check the system error codes to find out what went wrong:
+        On Linux: It populates the global errno variable.
+        On Windows: You must call the function WSAGetLastError().
+
+
+viii. recv() - reads the data that has arrived from a remote system over an active network socket connection.
+When a client sends data across the internet to your server, your application code does not read it straight off the wire. The operating system kernel manages the traffic first.
+    1. The Arrival: Packets hit your network card. The OS uses the 4-tuple rule to identify which specific client descriptor (client_skt) owns the data.
+    2. The Staging Area: The OS drops the raw bytes into a private kernel buffer allocated to that specific socket descriptor.
+    3. The recv() Execution: When your program calls recv(), the OS copies the requested number of bytes out of that dark kernel buffer and moves them straight into your program's local memory variable (buffer).
+    4. The Purge: Once the bytes are successfully copied into your application, the OS deletes them from its internal staging area to free up room for subsequent incoming data.
+
+Values/arguments generally passed:
+int recv(SOCKET s,char   *buf,int    len,int    flags);
+    s: The identifier socket handle for the target client (client_skt).You never call this on your passive listening socket (server_skt).
+    buf: A pointer to a local array in your code where the incoming text bytes should be deposited.
+    len: The maximum number of bytes you want to copy into your buffer.You typically pass sizeof(buffer) - 1 to leave space for a strict null terminator (\0) so your string prints cleanly.
+    flags: Used to alter the function's reading behaviors (e.g., peering at data without erasing it using MSG_PEEK). For standard operations, you pass 0.
+
+
+ix. SO_REUSEADDR stands for Socket Option: Reuse Address.
+It is a built-in configuration flag that you pass to the operating system kernel using the setsockopt() function.
+It alters the strict rules governing how ports are allocated to applications.
+By default, the operating system enforces a "one port, one application" rule to prevent data collisions.
+If a server program closes or crashes, the OS locks that port in a temporary safety state called TIME_WAIT for 1 to 4 minutes.During this window, you cannot re-bind to it, which causes your 10048 error.
+When you enable SO_REUSEADDR, you are explicitly commanding the operating system kernel to bypass the TIME_WAIT lockdown.
+    It tells the OS: "If this port is currently stuck in a cleanup cycle from a previous run of this exact same program, ignore the safety timer and let me bind to it immediately."
+
+
+x. The setsockopt() function stands for Set Socket Option.
+It is a built-in networking function used to configure and fine-tune the behavior of an already created socket descriptor.
+When you first create a socket using socket(), the operating system assigns it a set of default behaviors standard for TCP or UDP protocols.
+The setsockopt() function allows you to reach directly into the operating system kernel and override those default configurations to suit your application's needs (such as enabling port reuse, setting timeouts, or adjusting internal buffer limits).
+
+
+Values/arguments generally passed:
+    int setsockopt(SOCKET s,int level,int optname,const char *optval,int optlen);
+    s: The socket descriptor file handle you want to modify (e.g., server_skt).
+    level: The layer of the network stack where the option resides.For general socket configurations, you pass the constant SOL_SOCKET (Socket Level).If you are adjusting raw protocol layers, you might pass IPPROTO_TCP or IPPROTO_IP.
+    optname: The specific setting configuration flag you want to turn on or change (e.g., SO_REUSEADDR to allow port reclaiming).
+    optval: A pointer to the value or variable containing the configuration state you want to apply.For simple toggle features, you pass a pointer to a character variable containing 1 (for True/On) or 0 (for False/Off).
+    optlen: The memory byte size of the variable passed into optval (typically computed using sizeof()).
+
+Return Values
+    1. Success: Returns 0. The operating system has instantly applied your configuration adjustments to the kernel state table.
+    2. Failure: Returns SOCKET_ERROR (which evaluates to -1).
+
+
+xi. The setsockopt() function allows your program to communicate directly with the operating system kernel to configure or override default settings for a specific network socket.
+    setsockopt(server_skt, SOL_SOCKET, SO_REUSEADDR, &reuse_option, sizeof(reuse_option));
+When you create a socket, the OS applies generic, protective settings to it.
+setsockopt() acts as a master configuration switch.
+In your code, it tells the Windows kernel: "Change the strict port binding rule for this specific socket descriptor right now."
+
+Values/arguments generally passed:
+    Argument 1: SOCKET s (server_skt)
+        What it does: This identifies which specific socket you are changing the settings for.
+        In your code: You pass server_skt. This ensures you are modifying your main server listener gateway before you attempt to attach it to port 8095.
+    Argument 2: int level (SOL_SOCKET)
+        What it does: Network stacks have multiple conceptual layers (the general socket layer, the IP layer, the TCP layer, etc.).This argument specifies which layer your configuration setting belongs to.
+        In your code: You pass SOL_SOCKET (Socket Level). This tells the OS that you are changing a generic, top-level socket behavior rather than fine-tuning a deep, raw protocol setting.
+    Argument 3: int optname (SO_REUSEADDR)
+        What it does: This is the exact feature or property you want to adjust.
+        In your code: You pass SO_REUSEADDR (Reuse Address).This tells the kernel to override its normal 4-minute TIME_WAIT lock safety rule.It commands the OS to allow your server to immediately hijack and bind to port 8095 if it was left hanging by a sudden exit or crash.
+    Argument 4: const char *optval (&reuse_option)
+        What it does: This is a pointer to the data value you want to set for your chosen option.Because options can be true/false toggles, integer sizes, or time values, the function requires a reference link (&) to read the data out of your program's memory.
+        In your code: You created a character variable char reuse_option = 1; (where 1 means True/On) and passed its address &reuse_option. This explicitly toggles the port reuse feature to Active.
+    Argument 5: int optlen (sizeof(reuse_option))
+        What it does: This tells the operating system kernel the exact memory size (in bytes) of the variable you passed into Argument 4.
+        In your code: You pass sizeof(reuse_option), which evaluates to 1 byte because it is a char. This acts as a memory safety guard, letting the kernel know exactly how many bytes it needs to read from your pointer without overstepping your variable bounds.
+
+
+xii. The send() function is used to transmit data bytes outward over an active, connected network socket.
+Just like recv() pulls data out of an isolated buffer, send() does the reverse.
+It pushes data from your program's local memory variables directly into the operating system kernel's network buffer pool so the hardware can broadcast it to the client.
+
+Values/arguments generally passed:
+    int send(SOCKET s,const char *buf,int len,int flags);
+    Argument 1: SOCKET s (e.g., client_skt)
+        What it does: Specifies which active connection pipeline you want to send the message through.
+        Details: You must pass the unique client socket handle returned by accept(), never your passive background server_skt.This ensures the OS maps the packet headers to the correct 4-tuple destination.
+    Argument 2: const char *buf (e.g., client_buf or http_header)
+        What it does: A pointer to the local data buffer in your application RAM that holds the message you want to transmit.
+        Details: It expects a simple character array (char *) containing your text strings, raw binary chunks, or HTML page context sheets.
+    Argument 3: int len (e.g., (int)strlen(client_buf))
+        What it does: Tells the operating system kernel exactly how many bytes of data from that buffer pointer it should copy and transmit down the wire.
+        Details: If your buffer can hold 1000 characters but your text message is only 5 characters long (like "HELLO"), you should pass 5 (or use strlen()) so the system doesn't broadcast random leftover garbage memory.
+    Argument 4: int flags
+        What it does: Allows you to change the routing behavior of the network packet transmission stream.
+        Details: In almost all standard network application code frameworks, you pass a plain 0 to execute a standard sequential transmission.
+
+Return Values
+    Positive Integer (> 0): Success! The value tells you exactly how many bytes the operating system successfully accepted into its outgoing buffer pool.
+    SOCKET_ERROR (-1): The data transfer link failed. The client may have closed their application unexpectedly or pulled the network cable. You must query WSAGetLastError() immediately to catch the exact fault code.
+
+
+xiii. itoa(numeric value, char array buffer, number system used(usually 10))
+Values/arguments generally passed:
+    1. numeric value: The input number to convert (e.g., 5).
+    2. char array buffer: The destination buffer where the output characters will be saved.
+    3. 10: The number base (Base-10 / standard decimal system).
+        Example Result: If numeric value is the number 42, after this line executes, char array buffer stores the text string "42".
+
+
+
+xiv. sprintf(char *buffer, const char *format, ...);
+Values/arguments generally passed:
+    buffer: The pointer to the character array where the final text will be stored.
+    format: The template string containing text and format specifiers (like %d for integers, %f for floats).
+    ...: The matching variables that replace the format specifiers.
+
+Return Value
+    It returns the total number of characters written to the array, excluding the final null-terminator (\0).
+
+
+xv. sscanf(const char *buffer, const char *format, *storing_buffer);
+Values/arguments generally passed:
+    buffer: The source string that you want to read and extract data from.
+    format: The template string containing format specifiers (like %d, %f, %s) that dictate how the text should be split.
+    storing_buffer: The pointers [(memory addresses, using &) to the variables] where the extracted data will be saved.
+
+Return Value
+    It returns the number of successfully matched and assigned items.
+    If a matching failure happens before any assignment, it returns EOF(-1).
+
+# WinSock HTTP Server Project Documentation
+## GitHub Repository Description (About Section)
+A low-level, high-performance HTTP/1.1 web server built from scratch in C using the WinSock2 API, featuring robust heap memory optimization, dynamic file system routing, and custom fault recovery.
+------------------------------
+## WinSock C HTTP Web Server
+A lightweight, zero-dependency, low-level HTTP/1.1 web server implemented from the ground up in C. Leveraging the native Windows Sockets 2 (WinSock2) architecture, this project serves as a robust demonstration of network socket programming, standard-compliant HTTP protocol processing, binary file streaming, and rigorous manual memory safety.
+## 🚀 Technical Architecture & Core Features
+
+* Native WinSock2 Engine: Built directly on top of the Windows core networking stack (winsock2.h), managing the complete socket lifecycle from subsystem initialization (WSAStartup) through connection handling to systematic cleanup (WSACleanup).
+* Socket Level Optimizations: Modifies underlying socket options using SO_REUSEADDR via setsockopt. This structural decision bypasses the standard TCP TIME_WAIT state, enabling immediate port re-binding upon server reboots and eliminating connection port lockouts.
+* Deterministic Stack Protection: Utilizes a strict heap-allocation model (malloc/free) with a generous 75 KB input window (1024 * 75 bytes) to ingest incoming packets. By deliberately avoiding Variable Length Arrays (VLAs), the application maintains a fixed stack frame footprint and remains secure against stack overflow vulnerabilities during heavy request surges.
+* HTTP/1.1 GET Protocol Parser: Implements an in-place string tokenizer using strncmp and bounded sscanf formats to securely extract URL targets, isolate sub-resource pathways, and safely log diagnostic client traffic metrics to the console.
+* Dynamic Binary Content Streaming: Resolves filesystem paths relative to a dedicated server folder, calculating asset sizes dynamically via low-level stream tracking (fseek, ftell, rewind). Files are ingested into memory as binary streams to preserve formatting and prevent data corruption during network transmission.
+* Fault Isolation & Custom Fallbacks: Features an integrated error interceptor. If a requested file fails to resolve on the local filesystem, the server gracefully catches the error state, releases active memory buffers, and falls back to an internally generated, responsive 404 HTML page featuring precise Content-Length headers.
+
+## 📂 Project Structure
+To execute the server seamlessly, ensure your project directory mirrors the following organizational layout:
+
+├── server.c             # Main C server implementation source code
+└── Web Pages/           # Local root directory for web site assets
+    ├── index.html       # Default home page asset (Served automatically at "/")
+    └── [other assets]   # Supplemental HTML documents, style sheets, or client scripts
+
+## 🛠️ Compilation & Build Instructions
+This codebase is optimized for compiling natively on Microsoft Windows environments using either the MinGW (GCC) or the Microsoft Visual C++ (MSVC) toolchain.
+## Option 1: Compiling via GCC (MinGW)
+Because this project interfaces directly with native Windows subsystem binaries, you must explicitly instruct the compiler to link the WinSock2 library using the -lws2_32 link flag:
+
+gcc server.c -o web_server.exe -lws2_32
+
+## Option 2: Compiling via MSVC (Developer Command Prompt)
+
+cl.exe server.c /link WS2_32.lib
+
+## 💻 Deployment & Execution Blueprint
+
+   1. Create a directory named Web Pages in the same directory as your compiled executable and place a valid index.html entry asset inside it.
+   2. Initialize the compiled server application via your command terminal:
+   
+   ./web_server.exe
+   
+   3. The server runtime will conduct system checks and start listening for connection requests:
+   
+   Network Engine Initialized Successfully
+   Socket Created Sucessfully. Ready To Bind The Socket
+   Socket Configurations Modified Successfully
+   Socket Binded Successfully. Ready To Listen to Requests
+   
+   4. Interact with the live deployment by opening a standard browser page and navigating to:
+   
+   http://localhost:8095/
+   
+   
+## 📋 Protocol Specifications
+
+* Default Operational Port: 8095
+* Network Protocol Layer: TCP / IPv4 (AF_INET, SOCK_STREAM)
+* Maximum Inbound Buffer Range: 76,800 Bytes (1024 * 75)
+* Supported Transport Verbs: Bounded HTTP GET parsing
+* Error Handling Profile: Safe memory reclamation and programmatic socket closure on unexpected client dropouts or 404 file anomalies.
